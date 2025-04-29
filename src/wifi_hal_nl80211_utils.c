@@ -1102,6 +1102,7 @@ wifi_country_radio_op_class_t other_op_class = {
         { 125, 0, 6, {149, 153, 157, 161, 165, 169, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} }
     }
 };
+int nl80211_register_bss_frames(wifi_interface_info_t *interface);
 
 unsigned int get_sizeof_interfaces_index_map(void) {
 #ifdef CONFIG_WIFI_EMULATOR
@@ -1466,6 +1467,10 @@ void update_vap_mode(wifi_interface_info_t *interface)
     if (strncmp(vap->vap_name, "mesh_sta", strlen("mesh_sta")) == 0)
     {
             vap->vap_mode = wifi_vap_mode_sta;
+            if (nl80211_register_bss_frames(interface) != 0) 
+            {
+                wifi_hal_error_print("%s:%d: Failed to register for bss frames\n", __func__, __LINE__);
+            }
             wifi_hal_dbg_print(" mesh_sta , sta vap mode is updated \n");
     }
     else

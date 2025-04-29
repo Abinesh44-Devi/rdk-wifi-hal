@@ -669,17 +669,21 @@ static void nl80211_connect_event(wifi_interface_info_t *interface, struct nlatt
     }
 
     if (interface->u.sta.pending_rx_eapol) {
-        struct ieee802_1x_hdr *hdr;
-
+	void* hdr;
+	int buff_len;
+#ifdef EAPOL_OVER_NL
+        hdr = interface->u.sta.rx_eapol_buff;
+        buff_len = interface->u.sta.buff_len;
+#else
         hdr = (struct ieee802_1x_hdr *)(interface->u.sta.rx_eapol_buff + sizeof(struct ieee8023_hdr));
+	buff_len = interface->u.sta.buff_len - sizeof(struct ieee8023_hdr);
+#endif
 
         //XXX: eapol_sm_rx_eapol
 #if HOSTAPD_VERSION >= 211 //2.11
-        wpa_sm_rx_eapol(interface->u.sta.wpa_sm, (unsigned char *)&interface->u.sta.src_addr, (unsigned char *)hdr,
-            interface->u.sta.buff_len - sizeof(struct ieee8023_hdr), FRAME_ENCRYPTION_UNKNOWN);
+        wpa_sm_rx_eapol(interface->u.sta.wpa_sm, (unsigned char *)&interface->u.sta.src_addr, (unsigned char *)hdr,buff_len,FRAME_ENCRYPTION_UNKNOWN);
 #else
-        wpa_sm_rx_eapol(interface->u.sta.wpa_sm, (unsigned char *)&interface->u.sta.src_addr, (unsigned char *)hdr,
-            interface->u.sta.buff_len - sizeof(struct ieee8023_hdr));
+        wpa_sm_rx_eapol(interface->u.sta.wpa_sm, (unsigned char *)&interface->u.sta.src_addr, (unsigned char *)hdr,buff_len);
 #endif
         interface->u.sta.pending_rx_eapol = false;
     }
@@ -1571,7 +1575,7 @@ int process_global_nl80211_event(struct nl_msg *msg, void *arg)
     struct nlattr *tb[NL80211_ATTR_MAX + 1];
     unsigned int ifidx = 0;
     int wiphy_idx_rx = -1;
-    //unsigned long wdev_id = 0;
+    unsigned long wdev_id = 0;
     wifi_radio_info_t *radio;
     wifi_interface_info_t *interface;
     unsigned int i;
@@ -1587,13 +1591,13 @@ int process_global_nl80211_event(struct nl_msg *msg, void *arg)
     } else if (tb[NL80211_ATTR_WIPHY]) {
         wiphy_idx_rx = nla_get_u32(tb[NL80211_ATTR_WIPHY]);
     }
-    //else if (tb[NL80211_ATTR_WDEV]) {
-      //  wdev_id = nla_get_u64(tb[NL80211_ATTR_WDEV]);
-    //}
+    else if (tb[NL80211_ATTR_WDEV]) {
+        wdev_id = nla_get_u64(tb[NL80211_ATTR_WDEV]);
+    }
 
-    //wifi_hal_dbg_print("%s:%d:event %d for interface (ifindex %d wdev 0x%llx wiphy %d)\n",
-                //__func__, __LINE__, gnlh->cmd,
-                //ifidx, (long long unsigned int) wdev_id, wiphy_idx_rx);
+    wifi_hal_dbg_print("%s:%d:event %d for interface (ifindex %d wdev 0x%llx wiphy %d)\n",
+                __func__, __LINE__, gnlh->cmd,
+                ifidx, (long long unsigned int) wdev_id, wiphy_idx_rx);
 
     if (gnlh->cmd == NL80211_CMD_NEW_SCAN_RESULTS ||
         gnlh->cmd == NL80211_CMD_TRIGGER_SCAN ||
@@ -1626,10 +1630,10 @@ int process_global_nl80211_event(struct nl_msg *msg, void *arg)
             if ((wiphy_idx_rx != -1) || ((ifidx == interface->index) && (interface->vap_configured == true)) ) {
                 do_process_drv_event(interface, gnlh->cmd, tb);
             } else {
-                //wifi_hal_dbg_print("%s:%d: Skipping event %d for foreign interface (ifindex %d wdev 0x%llx)\n", 
-                    //__func__, __LINE__,
-                    //gnlh->cmd,
-                    //ifidx, (long long unsigned int) wdev_id);
+                wifi_hal_dbg_print("%s:%d: Skipping event %d for foreign interface (ifindex %d wdev 0x%llx)\n", 
+                    __func__, __LINE__,
+                    gnlh->cmd,
+                    ifidx, (long long unsigned int) wdev_id);
             }
 
             interface = hash_map_get_next(radio->interface_map, interface);

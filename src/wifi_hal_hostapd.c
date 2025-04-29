@@ -45,6 +45,8 @@
 #define RADIUS_FALLBACK_TIMER_IN_SECS   12*60*60
 
 extern const struct wpa_driver_ops g_wpa_driver_nl80211_ops;
+extern int     nl80211_interface_enable(const char *ifname, bool enable);
+extern int interface_set_state ( wifi_interface_info_t *interface, int operstate);
 
 int _syscmd(char *cmd, char *retBuf, int retBufSize)
 {
@@ -2397,6 +2399,11 @@ static int wpa_sm_sta_ether_send(void *ctx, const u8 *dest, u16 proto, const u8 
 
     interface = (wifi_interface_info_t *)ctx;
 
+    if (is_eapol_m4(buf,len))
+    {
+        nl80211_interface_enable(interface->name, true);
+    }
+
     if (g_wifi_hal.platform_flags & PLATFORM_FLAGS_CONTROL_PORT_FRAME) {
 #if HOSTAPD_VERSION >= 210 //2.10
         int encrypt;
@@ -2539,6 +2546,7 @@ void update_wpa_sm_params(wifi_interface_info_t *interface)
     mac_addr_str_t bssid_str;
     int sel, key_mgmt = 0;
     int wpa_key_mgmt_11w = 0;
+    unsigned short max_wpa_ie_len = 500;
 
     vap = &interface->vap_info;
     sec = &vap->u.sta_info.security;
@@ -2701,6 +2709,20 @@ void update_wpa_sm_params(wifi_interface_info_t *interface)
     if (get_ie_by_eid(WLAN_EID_RSN, assoc_req, interface->u.sta.assoc_req_len, &ie, &ie_len)
                 == true) {
         wpa_sm_set_assoc_wpa_ie(sm, ie, ie_len);
+    }
+    else
+    {
+        ie = os_malloc(max_wpa_ie_len);
+        if ( ie )
+        {
+            ie_len = max_wpa_ie_len;
+            if (wpa_sm_set_assoc_wpa_ie_default(sm,ie,&ie_len))
+            {
+                os_free(ie);
+                wifi_hal_dbg_print("Failures in wpa_sm_set_assoc_wpa_ie_default");
+                ie = NULL;
+            }
+        }
     }
     wpa_sm_notify_assoc(sm, sm->bssid);
 }
