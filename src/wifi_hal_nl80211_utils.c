@@ -1459,6 +1459,22 @@ int is_backhaul_interface(wifi_interface_info_t *interface)
     return (strncmp(vap->vap_name, "mesh_backhaul", strlen("mesh_backhaul")) == 0) ? true : false;
 }
 
+void update_vap_mode(wifi_interface_info_t *interface)
+{
+    wifi_vap_info_t *vap;
+    vap = &interface->vap_info;
+    if (strncmp(vap->vap_name, "mesh_sta", strlen("mesh_sta")) == 0)
+    {
+            vap->vap_mode = wifi_vap_mode_sta;
+            wifi_hal_dbg_print(" mesh_sta , sta vap mode is updated \n");
+    }
+    else
+    {
+            vap->vap_mode = wifi_vap_mode_ap;
+    }
+    return;
+}
+
 void get_wifi_interface_info_map(wifi_interface_name_idex_map_t *interface_map)
 {
     memcpy(interface_map, interface_index_map, get_sizeof_interfaces_index_map()*sizeof(wifi_interface_name_idex_map_t));
@@ -1487,9 +1503,13 @@ wifi_interface_info_t* get_primary_interface(wifi_radio_info_t *radio)
 {
     wifi_interface_info_t *interface;
     char interface_name[32] = { 0 };
-
+    wifi_hal_dbg_print(" get_primary_interface radio->rdk_radio_index %d \n", radio->rdk_radio_index);
     get_interface_name_from_radio_index(radio->rdk_radio_index, interface_name);
     interface = hash_map_get_first(radio->interface_map);
+    if ( radio->rdk_radio_index == 0 )
+	    strcpy(interface_name, "home-ap-24");
+    else
+            strcpy(interface_name, "home-ap-50");
 
     while (interface != NULL) {
         if(strcmp(interface_name, interface->name) == 0)

@@ -5850,6 +5850,8 @@ int interface_info_handler(struct nl_msg *msg, void *arg)
             if (is_backhaul_interface(interface)) {
                 interface_set_mtu(interface, 1600);
             }
+            // If sta interface was added from init script vap mode is not updated
+            update_vap_mode(interface);
         }
     }
 
