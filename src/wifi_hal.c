@@ -518,7 +518,7 @@ INT wifi_hal_init()
             interface = hash_map_get_next(radio->interface_map, interface);
         }
     }
-#endif // CONFIG_HW_CAPABILITIES || VNTXER5_PORT
+#endif // CONFIG_HW_CAPABILITIES || VNTXER5_PORT || TARGET_GEMINI7_2
 
     if ((get_radio_caps_fn = get_platform_get_radio_caps_fn()) != NULL) {
         wifi_hal_dbg_print("%s:%d: get platform radio capabilities\n", __func__, __LINE__);
